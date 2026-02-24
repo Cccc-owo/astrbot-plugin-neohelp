@@ -377,7 +377,8 @@ class CustomHelpPlugin(Star):
         """获取自定义字体配置"""
         font_url = (getattr(self.config, "font_url", "") or "").strip()
         font_family = (getattr(self.config, "font_family", "") or "").strip()
-        return {"font_url": font_url, "font_family": font_family}
+        mono_font_family = (getattr(self.config, "mono_font_family", "") or "").strip()
+        return {"font_url": font_url, "font_family": font_family, "mono_font_family": mono_font_family}
 
     async def _render_main_menu(self, event: AstrMessageEvent):
         """渲染主菜单"""

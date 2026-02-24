@@ -96,15 +96,21 @@
         }
     },
     "font_url": {
-        "description": "自定义字体 CSS @import URL（如 Google Fonts 的 URL），留空使用系统默认字体",
+        "description": "自定义字体 CSS URL（可包含多个字体族），留空使用系统默认字体",
         "type": "string",
-        "hint": "例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap",
+        "hint": "例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap",
         "default": ""
     },
     "font_family": {
-        "description": "自定义字体名称（需与 @import 中的字体对应），留空使用系统默认字体",
+        "description": "自定义正文字体名称（需与上方 URL 中的字体对应），留空使用系统默认字体",
         "type": "string",
         "hint": "例：Noto Sans SC",
+        "default": ""
+    },
+    "mono_font_family": {
+        "description": "自定义等宽字体名称（用于命令名、代码等），留空使用系统默认等宽字体",
+        "type": "string",
+        "hint": "例：JetBrains Mono",
         "default": ""
     },
     "banner_image": {

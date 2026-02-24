@@ -12,6 +12,7 @@
     --accent: {{ accent_color | default('#4e96f7') }};
     --border: rgba(255,255,255,0.08);
     --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -73,7 +74,7 @@
   .plugin-id {
     font-size: 11px;
     color: rgba(255,255,255,0.4);
-    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    font-family: var(--font-mono);
     background: rgba(0,0,0,0.2);
     padding: 2px 6px;
     border-radius: 4px;
@@ -100,7 +101,7 @@
     background: rgba(255,255,255,0.05);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    font-family: var(--font-mono);
     margin: 0 5px;
     border: 1px solid rgba(255,255,255,0.05);
   }
@@ -145,7 +146,7 @@
     font-size: 15px;
     font-weight: 700;
     color: var(--accent);
-    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    font-family: var(--font-mono);
     letter-spacing: 0.3px;
   }
 
@@ -173,7 +174,7 @@
     color: rgba(255,255,255,0.4);
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.05);
-    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    font-family: var(--font-mono);
   }
 
   .cmd-desc {
@@ -203,7 +204,7 @@
   .cmd-usage {
     font-size: 11px;
     color: rgba(255,255,255,0.7);
-    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    font-family: var(--font-mono);
     word-break: break-all;
   }
 
