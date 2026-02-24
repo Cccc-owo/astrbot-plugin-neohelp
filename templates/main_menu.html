@@ -17,8 +17,8 @@
     --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
 
     /* 布局尺寸变量：3 列卡片 + 间距 + 内边距 = 总宽度 */
-    --card-width: 168px;
-    --grid-gap: 12px;
+    --card-width: 220px;
+    --grid-gap: 16px;
     --content-padding: 24px;
     --container-width: calc(var(--card-width) * 3 + var(--grid-gap) * 2 + var(--content-padding) * 2);
   }
@@ -127,9 +127,7 @@
     color: #fff;
     margin-bottom: 6px;
     width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
   }
 
   .card-desc {
