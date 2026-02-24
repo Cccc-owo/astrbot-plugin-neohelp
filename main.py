@@ -126,6 +126,13 @@ class CustomHelpPlugin(Star):
         admins = self._ctx.get_config().get("admins_id", [])
         return sender_id in admins
 
+    def _get_wake_prefix(self) -> str:
+        """获取 AstrBot 唤醒前缀（取第一个，默认 '/'）"""
+        prefixes = self._ctx.get_config().get("wake_prefix", ["/"])
+        if prefixes and isinstance(prefixes, list):
+            return prefixes[0]
+        return "/"
+
     @filter.command("help", alias={"帮助", "菜单", "功能"})
     async def help_command(self, event: AstrMessageEvent, query: str = ""):
         """查看帮助菜单"""
@@ -423,10 +430,10 @@ class CustomHelpPlugin(Star):
         template_name = "expanded_menu.html" if expand else "main_menu.html"
         template = _read_template(template_name)
         accent = self._get_accent_color()
+        prefix = self._get_wake_prefix()
         title = getattr(self.config, "title", "帮助菜单") or "帮助菜单"
-        subtitle = (
-            getattr(self.config, "subtitle", "发送 /help <插件名> 查看详细命令") or "发送 /help <插件名> 查看详细命令"
-        )
+        default_subtitle = f"发送 {prefix}help <插件名> 查看详细命令"
+        subtitle = getattr(self.config, "subtitle", "") or default_subtitle
 
         if expand:
             plugins_data = [
@@ -456,6 +463,7 @@ class CustomHelpPlugin(Star):
         data = {
             "title": title,
             "subtitle": subtitle,
+            "prefix": prefix,
             "accent_color": accent,
             "banner_image": self._get_banner_data_uri(),
             "header_logo": self._get_header_logo_uri(),
@@ -490,7 +498,8 @@ class CustomHelpPlugin(Star):
                     break
 
         if not target:
-            return event.plain_result(f"未找到插件「{query}」，请发送 /help 查看所有可用插件。")
+            prefix = self._get_wake_prefix()
+            return event.plain_result(f"未找到插件「{query}」，请发送 {prefix}help 查看所有可用插件。")
 
         template = _read_template("sub_menu.html")
         accent = self._get_accent_color()
@@ -512,6 +521,7 @@ class CustomHelpPlugin(Star):
                 }
                 for c in target.commands
             ],
+            "prefix": self._get_wake_prefix(),
             "accent_color": accent,
             **self._get_font_config(),
             "footer": self._get_footer(),

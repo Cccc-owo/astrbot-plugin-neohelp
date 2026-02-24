@@ -251,7 +251,7 @@
 
   <!-- 返回指引 -->
   <div class="back-hint">
-    发送 <code>/help</code> 返回主菜单
+    发送 <code>{{ prefix }}help</code> 返回主菜单
   </div>
 
   <!-- 命令列表 -->
@@ -260,7 +260,7 @@
     {% for cmd in commands %}
     <div class="cmd-item">
       <div class="cmd-header">
-        <span class="cmd-name">/{{ cmd.name }}</span>
+        <span class="cmd-name">{{ prefix }}{{ cmd.name }}</span>
 
         <div class="tags-wrapper">
           {% if cmd.admin_only %}
