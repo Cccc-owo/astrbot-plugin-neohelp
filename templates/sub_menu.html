@@ -3,34 +3,46 @@
 <head>
 <meta charset="utf-8">
 <style>
+  :root {
+    --bg-color: #0f1115;
+    --item-bg: rgba(30, 34, 45, 0.4);
+    --accent: {{ accent_color | default('#4e96f7') }};
+    --border: rgba(255,255,255,0.08);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    width: 500px;
-    font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-    background: linear-gradient(180deg, #0d1117 0%, #111820 100%);
+    width: 520px;
+    font-family: "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg-color);
     color: #e6edf3;
-    padding: 28px 24px;
+    padding: 24px;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   /* ===== 插件头部 ===== */
   .plugin-header {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 10px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
   }
 
   .plugin-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     object-fit: cover;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     flex-shrink: 0;
   }
 
@@ -40,206 +52,239 @@
   }
 
   .plugin-info h1 {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
-    color: #f0f6fc;
-    margin-bottom: 2px;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .plugin-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 
   .plugin-id {
     font-size: 11px;
-    color: rgba(255,255,255,0.2);
-    font-family: "Consolas", "Monaco", monospace;
+    color: rgba(255,255,255,0.4);
+    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    background: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
   }
 
   .plugin-desc {
-    font-size: 12px;
-    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
     line-height: 1.5;
-    margin-bottom: 16px;
   }
 
   /* ===== 返回提示 ===== */
   .back-hint {
-    font-size: 11px;
-    color: rgba(255,255,255,0.2);
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
     margin-bottom: 16px;
+    padding-left: 4px;
     display: flex;
     align-items: center;
-    gap: 6px;
-  }
-
-  .back-hint .arrow {
-    color: {{ accent_color }};
-    font-weight: 600;
-    font-size: 13px;
   }
 
   .back-hint code {
-    color: {{ accent_color }};
-    background: {{ accent_color }}12;
-    padding: 1px 6px;
+    color: var(--accent);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
     border-radius: 4px;
-    font-family: "Consolas", "Monaco", monospace;
-    font-size: 10.5px;
+    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    margin: 0 5px;
+    border: 1px solid rgba(255,255,255,0.05);
   }
 
   /* ===== 命令列表 ===== */
   .commands {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 24px;
   }
 
   .cmd-item {
-    padding: 12px 14px;
-    background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
+    background: var(--item-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
     position: relative;
     overflow: hidden;
   }
 
+  /* 左侧装饰条 */
   .cmd-item::before {
     content: '';
     position: absolute;
-    top: 0; left: 0;
-    width: 3px; height: 100%;
-    background: {{ accent_color }};
-    opacity: 0.5;
-    border-radius: 3px 0 0 3px;
+    top: 14px; bottom: 14px; left: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+    opacity: 0.8;
   }
 
-  .cmd-top {
+  .cmd-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
     flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
   }
 
   .cmd-name {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: {{ accent_color }};
-    font-family: "Consolas", "Monaco", "Noto Sans SC", monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
     letter-spacing: 0.3px;
   }
 
-  .cmd-aliases {
+  .tags-wrapper {
     display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
   }
 
-  .alias-tag {
-    font-size: 9px;
-    color: rgba(255,255,255,0.3);
+  .tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .tag-admin {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+  }
+
+  .tag-alias {
+    color: rgba(255,255,255,0.4);
     background: rgba(255,255,255,0.05);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-family: "Consolas", "Monaco", "Noto Sans SC", monospace;
-  }
-
-  .admin-tag {
-    font-size: 9px;
-    color: #f97583;
-    background: rgba(249,117,131,0.1);
-    border: 1px solid rgba(249,117,131,0.2);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.05);
+    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
   }
 
   .cmd-desc {
-    font-size: 11.5px;
-    color: rgba(255,255,255,0.45);
+    font-size: 13px;
+    color: #ced0d6;
     line-height: 1.5;
-    padding-left: 2px;
+    margin-bottom: 8px;
+  }
+
+  .cmd-usage-box {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+    padding: 6px 10px;
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .usage-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    font-weight: 700;
   }
 
   .cmd-usage {
-    font-size: 10.5px;
-    color: rgba(255,255,255,0.25);
-    margin-top: 6px;
-    font-family: "Consolas", "Monaco", "Noto Sans SC", monospace;
-    background: rgba(0,0,0,0.25);
-    padding: 4px 10px;
-    border-radius: 6px;
-    display: inline-block;
-    border: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    font-family: "JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+    word-break: break-all;
   }
 
   /* ===== 空状态 ===== */
   .empty {
     text-align: center;
-    padding: 30px 0;
-    color: rgba(255,255,255,0.2);
-    font-size: 12px;
+    padding: 40px 0;
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,0.1);
   }
 
   /* ===== 底部信息 ===== */
   .footer {
     text-align: center;
-    padding-top: 14px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
   }
 
   .footer-text {
     font-size: 10px;
-    color: rgba(255,255,255,0.15);
-    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.2);
   }
 </style>
 </head>
 <body>
+  <!-- 头部信息 -->
   <div class="plugin-header">
     <img class="plugin-icon" src="{{ plugin.icon_url }}" alt="">
     <div class="plugin-info">
       <h1>{{ plugin.display_name }}</h1>
-      {% if plugin.name != plugin.display_name %}
-      <div class="plugin-id">{{ plugin.name }}</div>
+      <div class="plugin-meta">
+        {% if plugin.name != plugin.display_name %}
+        <span class="plugin-id">{{ plugin.name }}</span>
+        {% endif %}
+      </div>
+      {% if plugin.description %}
+      <div class="plugin-desc">{{ plugin.description }}</div>
       {% endif %}
     </div>
   </div>
 
-  {% if plugin.description %}
-  <div class="plugin-desc">{{ plugin.description }}</div>
-  {% endif %}
-
+  <!-- 返回指引 -->
   <div class="back-hint">
-    <span class="arrow">&larr;</span> 发送 <code>/help</code> 返回主菜单
+    发送 <code>/help</code> 返回主菜单
   </div>
 
+  <!-- 命令列表 -->
   {% if commands %}
   <div class="commands">
     {% for cmd in commands %}
     <div class="cmd-item">
-      <div class="cmd-top">
+      <div class="cmd-header">
         <span class="cmd-name">/{{ cmd.name }}</span>
-        {% if cmd.admin_only %}
-        <span class="admin-tag">管理员</span>
-        {% endif %}
-        {% if cmd.aliases %}
-        <div class="cmd-aliases">
-          {% for alias in cmd.aliases %}
-          <span class="alias-tag">{{ alias }}</span>
-          {% endfor %}
+
+        <div class="tags-wrapper">
+          {% if cmd.admin_only %}
+          <span class="tag tag-admin">管理员</span>
+          {% endif %}
+
+          {% if cmd.aliases %}
+            {% for alias in cmd.aliases %}
+            <span class="tag tag-alias">{{ alias }}</span>
+            {% endfor %}
+          {% endif %}
         </div>
-        {% endif %}
       </div>
+
       {% if cmd.description %}
       <div class="cmd-desc">{{ cmd.description }}</div>
       {% endif %}
+
       {% if cmd.usage %}
-      <div class="cmd-usage">{{ cmd.usage }}</div>
+      <div class="cmd-usage-box">
+        <span class="usage-label">用法</span>
+        <span class="cmd-usage">{{ cmd.usage }}</span>
+      </div>
       {% endif %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty">该插件没有注册命令</div>
+  <div class="empty">该插件暂未注册任何命令</div>
   {% endif %}
 
   <div class="footer">
