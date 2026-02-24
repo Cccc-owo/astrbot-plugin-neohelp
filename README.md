@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/logo.svg" width="120" height="120" alt="NeoHelp Logo">
+  <img src="https://github.com/Cccc-owo/astrbot-plugin-neohelp/raw/refs/heads/master/resources/logo.svg" width="120" height="120" alt="NeoHelp Logo">
 </p>
 
 <h1 align="center">NeoHelp</h1>
@@ -29,9 +29,9 @@
 - 支持添加自定义分类，用于展示非 AstrBot 插件的外部服务命令
 - 支持自定义 HTML 模板，完全控制渲染样式
 
-## 例图
+## 示例
 
-TODO
+见 [example.md](https://github.com/Cccc-owo/astrbot-plugin-neohelp/blob/master/example.md)
 
 ## 使用
 
@@ -92,4 +92,4 @@ data/plugin_data/astrbot_plugin_neohelp/custom_templates/
 
 ## 许可证
 
-[GPL-3.0](LICENSE)
+[MIT](LICENSE)
