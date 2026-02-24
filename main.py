@@ -373,6 +373,12 @@ class CustomHelpPlugin(Star):
             banner_path = PLUGIN_DIR / banner_path
         return _read_image_as_data_uri(banner_path)
 
+    def _get_font_config(self) -> dict:
+        """获取自定义字体配置"""
+        font_url = (getattr(self.config, "font_url", "") or "").strip()
+        font_family = (getattr(self.config, "font_family", "") or "").strip()
+        return {"font_url": font_url, "font_family": font_family}
+
     async def _render_main_menu(self, event: AstrMessageEvent):
         """渲染主菜单"""
         plugins = self._collect_plugins()
@@ -393,6 +399,7 @@ class CustomHelpPlugin(Star):
             "subtitle": subtitle,
             "accent_color": accent,
             "banner_image": self._get_banner_data_uri(),
+            **self._get_font_config(),
             "plugins": [
                 {
                     "name": p.name,
@@ -455,6 +462,7 @@ class CustomHelpPlugin(Star):
                 for c in target.commands
             ],
             "accent_color": accent,
+            **self._get_font_config(),
             "footer": self._get_footer(),
         }
 

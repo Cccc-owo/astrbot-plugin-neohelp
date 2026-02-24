@@ -34,7 +34,9 @@ async def render_template(tmpl_str: str, data: dict) -> bytes:
         browser = await _get_browser()
         page = await browser.new_page(device_scale_factor=2)
         try:
-            await page.goto(f"file://{tmp_path}", wait_until="load")
+            await page.goto(f"file://{tmp_path}", wait_until="networkidle")
+            # 等待网络字体加载完成
+            await page.evaluate("() => document.fonts.ready")
             # 用 JS 获取完整内容尺寸，避免截断
             dimensions = await page.evaluate(
                 """() => {

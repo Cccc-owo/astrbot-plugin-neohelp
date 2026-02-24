@@ -2,19 +2,23 @@
 <html>
 <head>
 <meta charset="utf-8">
+{% if font_url %}
+<link rel="stylesheet" href="{{ font_url }}">
+{% endif %}
 <style>
   :root {
     --bg-color: #0f1115;
     --item-bg: rgba(30, 34, 45, 0.4);
     --accent: {{ accent_color | default('#4e96f7') }};
     --border: rgba(255,255,255,0.08);
+    --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     width: 520px;
-    font-family: "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    font-family: var(--font-main);
     background: var(--bg-color);
     color: #e6edf3;
     padding: 24px;
