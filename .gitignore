@@ -25,9 +25,6 @@ venv/
 # Claude Code
 .claude/
 
-# Reference implementations (not part of the plugin)
-ref/
-
 # OS
 .DS_Store
 Thumbs.db
