@@ -10,8 +10,9 @@
         "default": "发送 /help <插件名> 查看详细命令"
     },
     "accent_color": {
-        "description": "强调色（十六进制颜色值，如 #d4b163）",
+        "description": "强调色",
         "type": "string",
+        "hint": "十六进制颜色值，如 #d4b163",
         "default": "#d4b163"
     },
     "show_builtin_cmds": {
@@ -20,13 +21,15 @@
         "default": false
     },
     "plugin_blacklist": {
-        "description": "不显示的插件列表（填写插件标识名，区分大小写）",
+        "description": "不显示的插件列表",
         "type": "list",
+        "hint": "填写插件标识名，区分大小写",
         "default": []
     },
     "plugin_overrides": {
-        "description": "插件显示覆盖（修改自动扫描到的插件的显示名、描述、排序等）",
+        "description": "插件显示覆盖",
         "type": "template_list",
+        "hint": "修改自动扫描到的插件的显示名、描述、排序等",
         "default": [],
         "templates": {
             "override": {
@@ -63,8 +66,9 @@
         }
     },
     "custom_categories": {
-        "description": "自定义分类（用于添加非 AstrBot 插件的外部命令）",
+        "description": "自定义分类",
         "type": "template_list",
+        "hint": "用于添加非 AstrBot 插件的外部命令",
         "default": [],
         "templates": {
             "category": {
@@ -96,21 +100,21 @@
         }
     },
     "font_url": {
-        "description": "自定义字体 CSS URL（可包含多个字体族），留空使用系统默认字体",
+        "description": "自定义字体 CSS URL",
         "type": "string",
-        "hint": "例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap",
+        "hint": "可包含多个字体族，留空使用系统默认。例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap",
         "default": ""
     },
     "font_family": {
-        "description": "自定义正文字体名称（需与上方 URL 中的字体对应），留空使用系统默认字体",
+        "description": "自定义正文字体名称",
         "type": "string",
-        "hint": "例：Noto Sans SC",
+        "hint": "需与上方 URL 中的字体对应，留空使用系统默认。例：Noto Sans SC",
         "default": ""
     },
     "mono_font_family": {
-        "description": "自定义等宽字体名称（用于命令名、代码等），留空使用系统默认等宽字体",
+        "description": "自定义等宽字体名称",
         "type": "string",
-        "hint": "例：JetBrains Mono",
+        "hint": "用于命令名、代码等，留空使用系统默认。例：JetBrains Mono",
         "default": ""
     },
     "banner_image": {
@@ -120,8 +124,9 @@
         "default": ""
     },
     "footer_text": {
-        "description": "底部自定义文字（留空显示默认版本信息）",
+        "description": "底部自定义文字",
         "type": "string",
+        "hint": "留空显示默认版本信息",
         "default": ""
     }
 }
