@@ -13,16 +13,20 @@
     --border: rgba(255,255,255,0.08);
     --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
     --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+
+    --content-width: 472px;
+    --content-padding: 24px;
+    --container-width: calc(var(--content-width) + var(--content-padding) * 2);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    width: 520px;
+    width: var(--container-width);
+    padding: var(--content-padding);
     font-family: var(--font-main);
     background: var(--bg-color);
     color: #e6edf3;
-    padding: 24px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

@@ -15,12 +15,17 @@
     --accent: {{ accent_color | default('#4e96f7') }};
     --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
     --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+
+    --card-width: 168px;
+    --grid-gap: 10px;
+    --content-padding: 24px;
+    --container-width: calc(var(--card-width) * 3 + var(--grid-gap) * 2 + var(--content-padding) * 2);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    width: 600px;
+    width: var(--container-width);
     font-family: var(--font-main);
     background: var(--bg-color);
     color: var(--text-primary);
@@ -83,7 +88,7 @@
 
   /* ===== 内容区域 ===== */
   .content {
-    padding: 20px 24px 24px;
+    padding: 20px var(--content-padding) 24px;
   }
 
   /* ===== 插件分类 ===== */
@@ -141,8 +146,8 @@
   /* ===== 命令网格 ===== */
   .cmd-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(3, var(--card-width));
+    gap: var(--grid-gap);
   }
 
   .cmd-card {

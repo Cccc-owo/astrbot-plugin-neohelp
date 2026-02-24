@@ -41,7 +41,7 @@ async def render_template(tmpl_str: str, data: dict) -> bytes:
             await page.goto(Path(tmp_path).as_uri(), wait_until="networkidle")
             # 等待网络字体加载完成
             await page.evaluate("() => document.fonts.ready")
-            # 宽度取 body CSS 设定值，高度取实际内容高度
+            # 从 body 获取实际渲染尺寸（body 宽度由 CSS 变量精确计算）
             dimensions = await page.evaluate(
                 """() => {
                     const body = document.body;
