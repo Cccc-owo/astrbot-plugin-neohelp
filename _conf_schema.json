@@ -26,6 +26,12 @@
         "hint": "填写插件标识名，区分大小写",
         "default": []
     },
+    "admin_show_all": {
+        "description": "管理员始终显示完整帮助",
+        "type": "bool",
+        "hint": "开启后管理员发送 /help 自动跳过黑名单，关闭时需使用 /help --admin",
+        "default": false
+    },
     "plugin_overrides": {
         "description": "插件显示覆盖",
         "type": "template_list",

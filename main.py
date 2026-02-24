@@ -119,15 +119,30 @@ class CustomHelpPlugin(Star):
         """插件卸载时关闭浏览器"""
         await renderer.cleanup()
 
+    def _is_admin(self, event: AstrMessageEvent) -> bool:
+        """判断消息发送者是否为 AstrBot 管理员"""
+        sender_id = event.get_sender_id()
+        admins = self._ctx.get_config().get("admins_id", [])
+        return sender_id in admins
+
     @filter.command("help", alias={"帮助", "菜单", "功能"})
     async def help_command(self, event: AstrMessageEvent, query: str = ""):
         """查看帮助菜单"""
         query = query.strip()
 
+        # 解析 --admin 标志
+        is_admin = self._is_admin(event)
+        has_admin_flag = "--admin" in query
+        if has_admin_flag:
+            query = query.replace("--admin", "").strip()
+
+        admin_show_all = getattr(self.config, "admin_show_all", False)
+        show_all = is_admin and (has_admin_flag or admin_show_all)
+
         if query:
-            yield await self._render_sub_menu(event, query)
+            yield await self._render_sub_menu(event, query, show_all)
         else:
-            yield await self._render_main_menu(event)
+            yield await self._render_main_menu(event, show_all)
 
     # ==================== 数据收集 ====================
 
@@ -140,10 +155,12 @@ class CustomHelpPlugin(Star):
                 return uri
         return _get_default_icon_uri()
 
-    def _collect_plugins(self) -> list[PluginInfo]:
+    def _collect_plugins(self, skip_blacklist: bool = False) -> list[PluginInfo]:
         """从已安装插件中自动收集命令信息"""
         plugins: dict[str, PluginInfo] = {}
-        blacklist = set(getattr(self.config, "plugin_blacklist", []) or [])
+        blacklist: set[str] = set()
+        if not skip_blacklist:
+            blacklist = set(getattr(self.config, "plugin_blacklist", []) or [])
         blacklist.add(PLUGIN_NAME)
         blacklist.add("astrbot")
 
@@ -381,9 +398,9 @@ class CustomHelpPlugin(Star):
         mono_font_family = (getattr(self.config, "mono_font_family", "") or "").strip()
         return {"font_url": font_url, "font_family": font_family, "mono_font_family": mono_font_family}
 
-    async def _render_main_menu(self, event: AstrMessageEvent):
+    async def _render_main_menu(self, event: AstrMessageEvent, show_all: bool = False):
         """渲染主菜单"""
-        plugins = self._collect_plugins()
+        plugins = self._collect_plugins(skip_blacklist=show_all)
         plugins = [p for p in plugins if p.commands]
 
         if not plugins:
@@ -422,9 +439,9 @@ class CustomHelpPlugin(Star):
             return event.plain_result("渲染帮助菜单失败，请稍后重试。")
         return event.chain_result([Image.fromBytes(img_bytes)])
 
-    async def _render_sub_menu(self, event: AstrMessageEvent, query: str):
+    async def _render_sub_menu(self, event: AstrMessageEvent, query: str, show_all: bool = False):
         """渲染子菜单（某个插件的详细命令）"""
-        plugins = self._collect_plugins()
+        plugins = self._collect_plugins(skip_blacklist=show_all)
 
         target = None
         query_lower = query.lower()
