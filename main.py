@@ -406,20 +406,30 @@ class CustomHelpPlugin(Star):
         if not plugins:
             return event.plain_result("没有找到任何可用的插件命令。")
 
-        template = _read_template("main_menu.html")
+        expand = getattr(self.config, "expand_commands", False)
+        template_name = "expanded_menu.html" if expand else "main_menu.html"
+        template = _read_template(template_name)
         accent = self._get_accent_color()
         title = getattr(self.config, "title", "帮助菜单") or "帮助菜单"
         subtitle = (
             getattr(self.config, "subtitle", "发送 /help <插件名> 查看详细命令") or "发送 /help <插件名> 查看详细命令"
         )
 
-        data = {
-            "title": title,
-            "subtitle": subtitle,
-            "accent_color": accent,
-            "banner_image": self._get_banner_data_uri(),
-            **self._get_font_config(),
-            "plugins": [
+        if expand:
+            plugins_data = [
+                {
+                    "name": p.name,
+                    "display_name": p.display_name,
+                    "description": p.description,
+                    "icon_url": p.icon_url,
+                    "commands": [
+                        {"name": c.name, "description": c.description, "admin_only": c.admin_only} for c in p.commands
+                    ],
+                }
+                for p in plugins
+            ]
+        else:
+            plugins_data = [
                 {
                     "name": p.name,
                     "display_name": p.display_name,
@@ -428,7 +438,15 @@ class CustomHelpPlugin(Star):
                     "cmd_count": len(p.commands),
                 }
                 for p in plugins
-            ],
+            ]
+
+        data = {
+            "title": title,
+            "subtitle": subtitle,
+            "accent_color": accent,
+            "banner_image": self._get_banner_data_uri(),
+            **self._get_font_config(),
+            "plugins": plugins_data,
             "footer": self._get_footer(),
         }
 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+{% if font_url %}
+<link rel="stylesheet" href="{{ font_url }}">
+{% endif %}
+<style>
+  :root {
+    --bg-color: #0f1115;
+    --card-bg: rgba(30, 34, 45, 0.7);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-secondary: #949ba4;
+    --accent: {{ accent_color | default('#4e96f7') }};
+    --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 600px;
+    font-family: var(--font-main);
+    background: var(--bg-color);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ===== Banner 区域 ===== */
+  .banner {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    padding: 30px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    {% if banner_image %}
+    background: url('{{ banner_image }}') center/cover no-repeat;
+    {% else %}
+    background: radial-gradient(circle at top right, #1f2a40 0%, #0f1115 100%);
+    {% endif %}
+  }
+
+  .banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(15,17,21,0) 30%, #0f1115 100%);
+    pointer-events: none;
+  }
+
+  .banner-content { position: relative; z-index: 2; }
+
+  .banner-title h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+
+  .banner-subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+
+  /* ===== 内容区域 ===== */
+  .content {
+    padding: 20px 24px 24px;
+  }
+
+  /* ===== 插件分类 ===== */
+  .plugin-section {
+    margin-bottom: 24px;
+  }
+
+  .plugin-section:last-child {
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .section-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+
+  .section-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .section-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ===== 命令网格 ===== */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cmd-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 10px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .cmd-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .cmd-card-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cmd-card-admin {
+    font-size: 9px;
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .cmd-card-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ===== 底部 ===== */
+  .footer {
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .footer-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="banner-content">
+      <div class="banner-title">
+        <h1>{{ title }}</h1>
+      </div>
+      <div class="banner-subtitle">{{ subtitle }}</div>
+    </div>
+  </div>
+
+  <div class="content">
+    {% for plugin in plugins %}
+    <div class="plugin-section">
+      <div class="section-header">
+        <img class="section-icon" src="{{ plugin.icon_url }}" alt="">
+        <span class="section-name">{{ plugin.display_name }}</span>
+        {% if plugin.description %}
+        <span class="section-desc">{{ plugin.description }}</span>
+        {% endif %}
+      </div>
+
+      <div class="cmd-grid">
+        {% for cmd in plugin.commands %}
+        <div class="cmd-card">
+          <div class="cmd-card-header">
+            <span class="cmd-card-name">/{{ cmd.name }}</span>
+            {% if cmd.admin_only %}
+            <span class="cmd-card-admin">管理员</span>
+            {% endif %}
+          </div>
+          {% if cmd.description %}
+          <div class="cmd-card-desc">{{ cmd.description }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+      <span class="footer-text">{{ footer }}</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -32,6 +32,12 @@
         "hint": "开启后管理员发送 /help 自动跳过黑名单，关闭时需使用 /help --admin",
         "default": false
     },
+    "expand_commands": {
+        "description": "主菜单展开所有命令",
+        "type": "bool",
+        "hint": "开启后 /help 直接显示所有插件的命令列表，关闭时显示插件卡片概览",
+        "default": false
+    },
     "plugin_overrides": {
         "description": "插件显示覆盖",
         "type": "template_list",
