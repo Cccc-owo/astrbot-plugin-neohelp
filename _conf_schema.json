@@ -2,18 +2,20 @@
     "title": {
         "description": "帮助菜单标题",
         "type": "string",
+        "hint": "帮助菜单",
         "default": "帮助菜单"
     },
     "subtitle": {
         "description": "帮助菜单副标题",
         "type": "string",
-        "default": "发送 /help <插件名> 查看详细命令"
+        "hint": "留空则根据唤醒前缀自动生成",
+        "default": ""
     },
     "accent_color": {
         "description": "强调色",
         "type": "string",
-        "hint": "十六进制颜色值，如 #d4b163",
-        "default": "#d4b163"
+        "hint": "十六进制颜色值，如 #4e96f7",
+        "default": "#4e96f7"
     },
     "show_builtin_cmds": {
         "description": "是否显示 AstrBot 内置命令",
