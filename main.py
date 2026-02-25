@@ -1,4 +1,7 @@
+import asyncio
 import base64
+import hashlib
+import json
 import mimetypes
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,9 +107,12 @@ class CustomHelpPlugin(Star):
         self._plugins_base_dir = PLUGIN_DIR.parent
         self._data_dir = StarTools.get_data_dir()
         self._data_dir.mkdir(parents=True, exist_ok=True)
+        self._image_cache: dict[str, bytes] = {}
+        asyncio.create_task(self._preheat_cache())
 
     async def terminate(self):
-        """插件卸载时关闭浏览器"""
+        """插件卸载时关闭浏览器并清理缓存"""
+        self._image_cache.clear()
         await renderer.cleanup()
 
     def _is_admin(self, event: AstrMessageEvent) -> bool:
@@ -371,6 +377,55 @@ class CustomHelpPlugin(Star):
             return None
         return CommandInfo(name=name, description=desc, custom_prefix=custom_prefix)
 
+    # ==================== 缓存 ====================
+
+    @staticmethod
+    def _cache_key(template_name: str, data: dict) -> str:
+        """根据模板名和数据内容生成缓存 key"""
+        raw = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
+        h = hashlib.md5(raw.encode()).hexdigest()
+        return f"{template_name}:{h}"
+
+    async def _get_cached_or_render(self, template_name: str, template: str, data: dict) -> bytes:
+        """查缓存，命中直接返回；未命中则渲染并存入缓存"""
+        key = self._cache_key(template_name, data)
+        _debug = getattr(self.config, "debug", False)
+        cached = self._image_cache.get(key)
+        if cached is not None:
+            if _debug:
+                logger.info(f"[NeoHelp] cache hit: {template_name}")
+            return cached
+        if _debug:
+            logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
+        img_bytes = await renderer.render_template(template, data)
+        self._image_cache[key] = img_bytes
+        return img_bytes
+
+    async def _preheat_cache(self):
+        """预热主菜单缓存（普通版 + 管理员版）"""
+        try:
+            for show_all in (False, True):
+                await self._preheat_main_menu(show_all)
+            logger.info("[NeoHelp] 缓存预热完成")
+        except Exception as e:
+            logger.warning(f"[NeoHelp] 缓存预热失败: {e}")
+
+    async def _preheat_main_menu(self, show_all: bool):
+        """预热单份主菜单缓存"""
+        plugins = self._collect_plugins(skip_blacklist=show_all)
+        plugins = [p for p in plugins if p.commands]
+        if not plugins:
+            return
+
+        expand = getattr(self.config, "expand_commands", False)
+        template_name = "expanded_menu.html" if expand else "main_menu.html"
+        custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
+        template = _read_template(template_name, custom_dir)
+        prefix = self._get_wake_prefix()
+
+        data = self._build_main_menu_data(plugins, prefix, expand)
+        await self._get_cached_or_render(template_name, template, data)
+
     # ==================== 渲染 ====================
 
     @staticmethod
@@ -431,20 +486,8 @@ class CustomHelpPlugin(Star):
         mono_font_family = (getattr(self.config, "mono_font_family", "") or "").strip()
         return {"font_url": font_url, "font_family": font_family, "mono_font_family": mono_font_family}
 
-    async def _render_main_menu(self, event: AstrMessageEvent, show_all: bool = False):
-        """渲染主菜单"""
-        plugins = self._collect_plugins(skip_blacklist=show_all)
-        plugins = [p for p in plugins if p.commands]
-
-        if not plugins:
-            return event.plain_result("没有找到任何可用的插件命令。")
-
-        expand = getattr(self.config, "expand_commands", False)
-        template_name = "expanded_menu.html" if expand else "main_menu.html"
-        custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
-        template = _read_template(template_name, custom_dir)
-        accent = self._get_accent_color()
-        prefix = self._get_wake_prefix()
+    def _build_main_menu_data(self, plugins: list[PluginInfo], prefix: str, expand: bool) -> dict:
+        """构建主菜单模板数据"""
         title = getattr(self.config, "title", "帮助菜单") or "帮助菜单"
         default_subtitle = f"发送 {prefix}help <插件名> 查看详细命令"
         subtitle = getattr(self.config, "subtitle", "") or default_subtitle
@@ -479,11 +522,11 @@ class CustomHelpPlugin(Star):
                 for p in plugins
             ]
 
-        data = {
+        return {
             "title": title,
             "subtitle": subtitle,
             "prefix": prefix,
-            "accent_color": accent,
+            "accent_color": self._get_accent_color(),
             "banner_image": self._get_banner_data_uri(),
             "header_logo": self._get_header_logo_uri(),
             **self._get_font_config(),
@@ -491,8 +534,23 @@ class CustomHelpPlugin(Star):
             "footer": self._get_footer(),
         }
 
+    async def _render_main_menu(self, event: AstrMessageEvent, show_all: bool = False):
+        """渲染主菜单"""
+        plugins = self._collect_plugins(skip_blacklist=show_all)
+        plugins = [p for p in plugins if p.commands]
+
+        if not plugins:
+            return event.plain_result("没有找到任何可用的插件命令。")
+
+        expand = getattr(self.config, "expand_commands", False)
+        template_name = "expanded_menu.html" if expand else "main_menu.html"
+        custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
+        template = _read_template(template_name, custom_dir)
+        prefix = self._get_wake_prefix()
+        data = self._build_main_menu_data(plugins, prefix, expand)
+
         try:
-            img_bytes = await renderer.render_template(template, data)
+            img_bytes = await self._get_cached_or_render(template_name, template, data)
         except Exception as e:
             logger.error(f"渲染主菜单失败: {e}")
             return event.plain_result("渲染帮助菜单失败，请稍后重试。")
@@ -550,7 +608,7 @@ class CustomHelpPlugin(Star):
         }
 
         try:
-            img_bytes = await renderer.render_template(template, data)
+            img_bytes = await self._get_cached_or_render("sub_menu.html", template, data)
         except Exception as e:
             logger.error(f"渲染子菜单失败: {e}")
             return event.plain_result("渲染帮助菜单失败，请稍后重试。")
