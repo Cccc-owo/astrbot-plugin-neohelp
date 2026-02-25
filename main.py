@@ -108,10 +108,12 @@ class CustomHelpPlugin(Star):
         self._data_dir = StarTools.get_data_dir()
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._image_cache: dict[str, bytes] = {}
+        self._terminated = False
         asyncio.create_task(self._preheat_cache())
 
     async def terminate(self):
         """插件卸载时关闭浏览器并清理缓存"""
+        self._terminated = True
         self._image_cache.clear()
         await renderer.cleanup()
 
@@ -405,8 +407,13 @@ class CustomHelpPlugin(Star):
         """预热主菜单缓存（普通版 + 管理员版）"""
         try:
             for show_all in (False, True):
+                if self._terminated:
+                    return
                 await self._preheat_main_menu(show_all)
-            logger.info("[NeoHelp] 缓存预热完成")
+            if not self._terminated:
+                logger.info(
+                    f"[NeoHelp] 缓存预热完成，共 {len(self._image_cache)} 项"
+                )
         except Exception as e:
             logger.warning(f"[NeoHelp] 缓存预热失败: {e}")
 
