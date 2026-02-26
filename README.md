@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/Cccc-owo/astrbot-plugin-neohelp/raw/refs/heads/master/resources/logo.svg" width="120" height="120" alt="NeoHelp Logo">
+  <img src="resources/logo.svg" width="120" height="120" alt="NeoHelp Logo">
 </p>
 
 <h1 align="center">NeoHelp</h1>
@@ -31,7 +31,7 @@
 
 ## 示例
 
-见 [example.md](https://github.com/Cccc-owo/astrbot-plugin-neohelp/blob/master/example.md)
+见 [example.md](example.md)
 
 ## 使用
 
