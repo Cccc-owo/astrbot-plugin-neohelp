@@ -96,8 +96,8 @@ def _get_default_icon_uri() -> str:
 @register(
     "astrbot_plugin_neohelp",
     "Cccc_",
-    "美观的自定义帮助菜单插件",
-    "1.0.0",
+    "可选地展示已安装插件命令，渲染为精美的图片帮助菜单。支持高度自定义。",
+    "1.2.2",
 )
 class CustomHelpPlugin(Star):
     # ==================== 生命周期 ====================

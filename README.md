@@ -5,7 +5,7 @@
 <h1 align="center">NeoHelp</h1>
 
 <p align="center">
-  美观的自定义帮助菜单插件，适用于 <a href="https://github.com/AstrBotDevs/AstrBot">AstrBot</a>
+  可选地展示已安装插件命令，渲染为精美的图片帮助菜单。支持高度自定义。
 </p>
 
 <p align="center">
