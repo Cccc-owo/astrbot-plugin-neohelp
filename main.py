@@ -333,7 +333,7 @@ class CustomHelpPlugin(Star):
                 p.display_name = override["display_name"]
             if override.get("description"):
                 p.description = override["description"]
-            if override.get("order", 99) != 99:
+            if "order" in override:
                 p.order = override["order"]
             for raw_cmd in override.get("extra_commands", []):
                 cmd = self._parse_pipe_command(raw_cmd)
@@ -354,7 +354,7 @@ class CustomHelpPlugin(Star):
                 name=cat_name,
                 display_name=cat["name"],
                 description=cat.get("description", ""),
-                order=cat.get("order", 50),
+                order=cat.get("order", 99),
             )
             for raw_cmd in cat.get("commands", []):
                 cmd = self._parse_pipe_command(raw_cmd)

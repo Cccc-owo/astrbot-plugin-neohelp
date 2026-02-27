@@ -72,7 +72,7 @@
                         "default": ""
                     },
                     "order": {
-                        "description": "排序权重（越小越靠前，默认 99）",
+                        "description": "排序权重（越小越靠前，默认 99 表示按字母序排列，设为其他值则强制排序）",
                         "type": "int",
                         "default": 99
                     },
@@ -106,9 +106,9 @@
                         "default": ""
                     },
                     "order": {
-                        "description": "排序权重（越小越靠前）",
+                        "description": "排序权重（越小越靠前，默认 99 表示按字母序排列，设为其他值则强制排序）",
                         "type": "int",
-                        "default": 50
+                        "default": 99
                     },
                     "commands": {
                         "description": "命令列表（格式：命令名|描述|前缀，前缀可选，默认无前缀）",
