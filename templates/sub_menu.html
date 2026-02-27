@@ -2,8 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-{% if font_url %}
-<link rel="stylesheet" href="{{ font_url }}">
+{% if font_urls %}
+{% for url in font_urls %}
+<link rel="stylesheet" href="{{ url }}">
+{% endfor %}
 {% endif %}
 <style>
   :root {
@@ -11,7 +13,7 @@
     --item-bg: rgba(30, 34, 45, 0.4);
     --accent: {{ accent_color | default('#4e96f7') }};
     --border: rgba(255,255,255,0.08);
-    --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    --font-main: {% if latin_font_family %}"{{ latin_font_family }}", {% endif %}{% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
     --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
 
     --content-width: 472px;

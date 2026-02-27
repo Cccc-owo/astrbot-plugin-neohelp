@@ -135,7 +135,13 @@
     "font_family": {
         "description": "自定义正文字体名称",
         "type": "string",
-        "hint": "需与上方 URL 中的字体对应，留空使用系统默认。例：Noto Sans SC",
+        "hint": "CJK 字体，需与上方 URL 中的字体对应，留空使用系统默认。例：Noto Sans SC",
+        "default": ""
+    },
+    "latin_font_family": {
+        "description": "西文字体名称",
+        "type": "string",
+        "hint": "优先用于英文和数字，留空则跟随正文字体。例：Inter",
         "default": ""
     },
     "mono_font_family": {

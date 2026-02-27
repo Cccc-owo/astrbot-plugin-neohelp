@@ -2,8 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-{% if font_url %}
-<link rel="stylesheet" href="{{ font_url }}">
+{% if font_urls %}
+{% for url in font_urls %}
+<link rel="stylesheet" href="{{ url }}">
+{% endfor %}
 {% endif %}
 <style>
   :root {
@@ -13,7 +15,7 @@
     --text-primary: #ffffff;
     --text-secondary: #949ba4;
     --accent: {{ accent_color | default('#4e96f7') }};
-    --font-main: {% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    --font-main: {% if latin_font_family %}"{{ latin_font_family }}", {% endif %}{% if font_family %}"{{ font_family }}", {% endif %}"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
     --font-mono: {% if mono_font_family %}"{{ mono_font_family }}", {% endif %}"JetBrains Mono", "Noto Sans Mono", "Consolas", monospace;
 
     /* 布局尺寸变量：3 列卡片 + 间距 + 内边距 = 总宽度 */
