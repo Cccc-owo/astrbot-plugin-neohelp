@@ -338,6 +338,13 @@ class CustomHelpPlugin(Star):
 
             self._extract_commands(handler, plugins[plugin_name])
 
+        # 去重：移除被命令组包含的独立命令
+        for p in plugins.values():
+            names = {c.name for c in p.commands}
+            p.commands = [c for c in p.commands if not any(
+                n.endswith(f" {c.name}") for n in names
+            )]
+
         # 应用配置覆盖
         self._apply_overrides(plugins)
 
