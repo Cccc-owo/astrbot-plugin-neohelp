@@ -126,11 +126,11 @@
             }
         }
     },
-    "font_url": {
+    "font_urls": {
         "description": "自定义字体 CSS URL",
-        "type": "string",
-        "hint": "可包含多个字体族，留空使用系统默认。例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap",
-        "default": ""
+        "type": "list",
+        "hint": "每项一个 CSS URL，留空使用系统默认。例：https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap",
+        "default": []
     },
     "font_family": {
         "description": "自定义正文字体名称",

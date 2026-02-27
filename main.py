@@ -524,11 +524,11 @@ class CustomHelpPlugin(Star):
 
     def _get_font_config(self) -> dict:
         """获取自定义字体配置"""
-        font_url = (getattr(self.config, "font_url", "") or "").strip()
+        font_urls_raw = getattr(self.config, "font_urls", []) or []
+        font_urls = [u.strip() for u in font_urls_raw if isinstance(u, str) and u.strip()]
         font_family = (getattr(self.config, "font_family", "") or "").strip()
         latin_font_family = (getattr(self.config, "latin_font_family", "") or "").strip()
         mono_font_family = (getattr(self.config, "mono_font_family", "") or "").strip()
-        font_urls = [u for u in [font_url] if u]
         return {
             "font_urls": font_urls,
             "font_family": font_family,
