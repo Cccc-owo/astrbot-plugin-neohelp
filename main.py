@@ -111,6 +111,10 @@ class CustomHelpPlugin(Star):
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._image_cache: dict[str, bytes] = {}
         self._terminated = False
+        self._disk_cache = bool(getattr(self.config, "disk_cache", False))
+        self._cache_dir = self._data_dir / "cache"
+        if self._disk_cache:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     async def initialize(self):
         """插件完全加载后启动缓存预热"""
@@ -119,7 +123,8 @@ class CustomHelpPlugin(Star):
     async def terminate(self):
         """插件卸载时关闭浏览器并清理缓存"""
         self._terminated = True
-        self._image_cache.clear()
+        if not self._disk_cache:
+            self._image_cache.clear()
         await renderer.cleanup()
 
     # ==================== 缓存 ====================
@@ -129,21 +134,40 @@ class CustomHelpPlugin(Star):
         """根据模板名和数据内容生成缓存 key"""
         raw = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
         h = hashlib.md5(raw.encode()).hexdigest()
-        return f"{template_name}:{h}"
+        name = template_name.replace(".html", "")
+        return f"{name}_{h}"
+
+    def _disk_cache_path(self, key: str) -> Path:
+        return self._cache_dir / f"{key}.png"
 
     async def _get_cached_or_render(self, template_name: str, template: str, data: dict) -> bytes:
         """查缓存，命中直接返回；未命中则渲染并存入缓存"""
         key = self._cache_key(template_name, data)
         _debug = getattr(self.config, "debug", False)
-        cached = self._image_cache.get(key)
-        if cached is not None:
-            if _debug:
-                logger.info(f"[NeoHelp] cache hit: {template_name}")
-            return cached
+
+        # 读缓存
+        if self._disk_cache:
+            cache_file = self._disk_cache_path(key)
+            if cache_file.is_file():
+                if _debug:
+                    logger.info(f"[NeoHelp] disk cache hit: {template_name}")
+                return cache_file.read_bytes()
+        else:
+            cached = self._image_cache.get(key)
+            if cached is not None:
+                if _debug:
+                    logger.info(f"[NeoHelp] memory cache hit: {template_name}")
+                return cached
+
         if _debug:
             logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
         img_bytes = await renderer.render_template(template, data)
-        self._image_cache[key] = img_bytes
+
+        # 写缓存
+        if self._disk_cache:
+            self._disk_cache_path(key).write_bytes(img_bytes)
+        else:
+            self._image_cache[key] = img_bytes
         return img_bytes
 
     async def _preheat_cache(self):
@@ -154,25 +178,44 @@ class CustomHelpPlugin(Star):
             return
         logger.info("[NeoHelp] 开始缓存预热...")
         try:
+            # 记录本轮预热生成的 cache key，用于清理过期磁盘缓存
+            valid_keys: set[str] = set()
+
             for show_all in (False, True):
                 if self._terminated:
                     return
-                await self._preheat_main_menu(show_all)
+                await self._preheat_main_menu(show_all, valid_keys)
 
             # 稍微延时后预热所有子菜单
             await asyncio.sleep(1)
             for show_all in (False, True):
                 if self._terminated:
                     return
-                await self._preheat_sub_menus(show_all)
+                await self._preheat_sub_menus(show_all, valid_keys)
 
             if not self._terminated:
-                logger.info(f"[NeoHelp] 缓存预热完成，共 {len(self._image_cache)} 项")
+                # 磁盘模式：清理过期缓存文件
+                if self._disk_cache:
+                    self._cleanup_disk_cache(valid_keys)
+                count = len(valid_keys) if self._disk_cache else len(self._image_cache)
+                logger.info(f"[NeoHelp] 缓存预热完成，共 {count} 项")
         except Exception as e:
             if not self._terminated:
                 logger.warning(f"[NeoHelp] 缓存预热失败: {e}")
 
-    async def _preheat_main_menu(self, show_all: bool):
+    def _cleanup_disk_cache(self, valid_keys: set[str]):
+        """删除不再有效的磁盘缓存文件"""
+        if not self._cache_dir.is_dir():
+            return
+        removed = 0
+        for f in self._cache_dir.iterdir():
+            if f.suffix == ".png" and f.stem not in valid_keys:
+                f.unlink(missing_ok=True)
+                removed += 1
+        if removed:
+            logger.info(f"[NeoHelp] 清理过期磁盘缓存 {removed} 项")
+
+    async def _preheat_main_menu(self, show_all: bool, valid_keys: set[str]):
         """预热单份主菜单缓存"""
         plugins = self._collect_plugins(skip_blacklist=show_all)
         plugins = [p for p in plugins if p.commands]
@@ -186,9 +229,10 @@ class CustomHelpPlugin(Star):
         prefix = self._get_wake_prefix()
 
         data = self._build_main_menu_data(plugins, prefix, expand)
+        valid_keys.add(self._cache_key(template_name, data))
         await self._get_cached_or_render(template_name, template, data)
 
-    async def _preheat_sub_menus(self, show_all: bool):
+    async def _preheat_sub_menus(self, show_all: bool, valid_keys: set[str]):
         """预热所有插件的子菜单缓存"""
         plugins = self._collect_plugins(skip_blacklist=show_all)
         plugins = [p for p in plugins if p.commands]
@@ -203,6 +247,7 @@ class CustomHelpPlugin(Star):
             if self._terminated:
                 return
             data = self._build_sub_menu_data(p, prefix)
+            valid_keys.add(self._cache_key("sub_menu.html", data))
             await self._get_cached_or_render("sub_menu.html", template, data)
 
     # ==================== 命令入口 ====================

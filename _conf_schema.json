@@ -173,5 +173,11 @@
         "type": "bool",
         "hint": "开启后在日志中输出详细的调试信息，用于排查问题",
         "default": false
+    },
+    "disk_cache": {
+        "description": "磁盘缓存",
+        "type": "bool",
+        "hint": "将渲染图片缓存到磁盘而非内存，重启后无需重新渲染",
+        "default": false
     }
 }
