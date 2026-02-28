@@ -9,7 +9,7 @@ from pathlib import Path
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.star import Context, Star, StarTools, register
+from astrbot.api.star import Context, Star, StarTools
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import Image
 from astrbot.core.star.context import Context as FullContext
@@ -94,12 +94,6 @@ def _get_default_icon_uri() -> str:
     return _default_icon_uri
 
 
-@register(
-    "astrbot_plugin_neohelp",
-    "Cccc_",
-    "可选地展示已安装插件命令，渲染为精美的图片帮助菜单。支持高度自定义。",
-    "1.2.3",
-)
 class CustomHelpPlugin(Star):
     # ==================== 生命周期 ====================
 
@@ -231,7 +225,12 @@ class CustomHelpPlugin(Star):
                 # 磁盘模式：清理过期缓存文件
                 if self._disk_cache:
                     self._cleanup_disk_cache(valid_keys)
-                count = len(valid_keys) if self._disk_cache else len(self._image_cache)
+                else:
+                    # 内存模式：移除过期缓存
+                    self._image_cache = {k: v for k, v in self._image_cache.items() if k in valid_keys}
+                # 清理不再需要的锁
+                self._render_locks = {k: v for k, v in self._render_locks.items() if k in valid_keys}
+                count = len(valid_keys)
                 logger.info(f"[NeoHelp] 缓存预热完成，共 {count} 项")
         except Exception as e:
             if not self._terminated:
@@ -549,6 +548,8 @@ class CustomHelpPlugin(Star):
             for raw_cmd in override.get("extra_commands", []):
                 cmd = self._parse_pipe_command(raw_cmd)
                 if cmd:
+                    # 覆盖同名已有命令
+                    p.commands = [c for c in p.commands if c.name != cmd.name]
                     p.commands.append(cmd)
 
     def _apply_custom_categories(self, plugins: dict[str, PluginInfo]):
