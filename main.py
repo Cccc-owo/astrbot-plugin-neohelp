@@ -1,10 +1,7 @@
 import asyncio
-import base64
 import contextlib
 import hashlib
 import json
-import mimetypes
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from astrbot.api import logger
@@ -13,85 +10,11 @@ from astrbot.api.star import Context, Star, StarTools
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import Image
 from astrbot.core.star.context import Context as FullContext
-from astrbot.core.star.filter.command import CommandFilter
-from astrbot.core.star.filter.command_group import CommandGroupFilter
-from astrbot.core.star.filter.permission import PermissionType, PermissionTypeFilter
-from astrbot.core.star.star_handler import StarHandlerMetadata, star_handlers_registry
 
 from . import renderer
-
-PLUGIN_NAME = "astrbot_plugin_neohelp"
-PLUGIN_DIR = Path(__file__).parent
-TEMPLATES_DIR = PLUGIN_DIR / "templates"
-RESOURCES_DIR = PLUGIN_DIR / "resources"
-DEFAULT_ICON_PATH = RESOURCES_DIR / "default_icon.webp"
-DEFAULT_LOGO_PATH = RESOURCES_DIR / "logo.svg"
-
-
-@dataclass
-class CommandInfo:
-    name: str
-    description: str = ""
-    aliases: list[str] = field(default_factory=list)
-    usage: str = ""
-    admin_only: bool = False
-    custom_prefix: str | None = None  # None 表示使用全局唤醒前缀，"" 表示无前缀
-
-
-@dataclass
-class PluginInfo:
-    name: str
-    display_name: str = ""
-    description: str = ""
-    commands: list[CommandInfo] = field(default_factory=list)
-    icon_url: str = ""  # base64 data URI 或空
-    order: int = 99
-
-    def __post_init__(self):
-        if not self.display_name:
-            self.display_name = self.name
-
-
-def _read_template(name: str, data_dir: Path | None = None) -> str:
-    """读取模板文件，开启自定义模板时优先从数据目录加载"""
-    if data_dir:
-        custom_path = data_dir / name
-        if custom_path.is_file():
-            try:
-                with open(custom_path, encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                logger.warning(f"读取自定义模板失败 {custom_path}: {e}，回退到默认模板")
-    path = TEMPLATES_DIR / name
-    with open(path, encoding="utf-8") as f:
-        return f.read()
-
-
-def _read_image_as_data_uri(path: Path) -> str:
-    """读取图片文件并转为 base64 data URI"""
-    if not path.is_file():
-        return ""
-    try:
-        mime, _ = mimetypes.guess_type(str(path))
-        if not mime:
-            mime = "image/png"
-        data = path.read_bytes()
-        b64 = base64.b64encode(data).decode("ascii")
-        return f"data:{mime};base64,{b64}"
-    except Exception as e:
-        logger.warning(f"读取图片失败 {path}: {e}")
-        return ""
-
-
-# 缓存默认图标 data URI（只读一次）
-_default_icon_uri: str | None = None
-
-
-def _get_default_icon_uri() -> str:
-    global _default_icon_uri
-    if _default_icon_uri is None:
-        _default_icon_uri = _read_image_as_data_uri(DEFAULT_ICON_PATH)
-    return _default_icon_uri
+from .collector import PluginCollector
+from .models import CommandInfo, PluginInfo
+from .utils import DEFAULT_LOGO_PATH, PLUGIN_DIR, read_image_as_data_uri, read_template
 
 
 class CustomHelpPlugin(Star):
@@ -112,6 +35,7 @@ class CustomHelpPlugin(Star):
         self._cache_dir = self._data_dir / "cache"
         if self._disk_cache:
             self._cache_dir.mkdir(parents=True, exist_ok=True)
+        self._collector = PluginCollector(self._ctx, self.config, self._plugins_base_dir)
 
     async def initialize(self):
         """插件完全加载后启动缓存预热"""
@@ -158,7 +82,8 @@ class CustomHelpPlugin(Star):
                         return content
                     cache_file.unlink(missing_ok=True)
             except OSError:
-                cache_file.unlink(missing_ok=True)
+                with contextlib.suppress(OSError):
+                    cache_file.unlink(missing_ok=True)
         else:
             cached = self._image_cache.get(key)
             if cached is not None:
@@ -261,7 +186,7 @@ class CustomHelpPlugin(Star):
         expand = getattr(self.config, "expand_commands", False)
         template_name = "expanded_menu.html" if expand else "main_menu.html"
         custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
-        template = _read_template(template_name, custom_dir)
+        template = read_template(template_name, custom_dir)
         prefix = self._get_wake_prefix()
 
         data = self._build_main_menu_data(plugins, prefix, expand)
@@ -276,7 +201,7 @@ class CustomHelpPlugin(Star):
             return
 
         custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
-        template = _read_template("sub_menu.html", custom_dir)
+        template = read_template("sub_menu.html", custom_dir)
         prefix = self._get_wake_prefix()
 
         for p in plugins:
@@ -333,263 +258,9 @@ class CustomHelpPlugin(Star):
 
     # ==================== 数据收集 ====================
 
-    def _get_plugin_icon_uri(self, root_dir_name: str | None) -> str:
-        """获取插件图标的 data URI，找不到则返回默认图标"""
-        if root_dir_name:
-            logo_path = self._plugins_base_dir / root_dir_name / "logo.png"
-            uri = _read_image_as_data_uri(logo_path)
-            if uri:
-                return uri
-        return _get_default_icon_uri()
-
     def _collect_plugins(self, skip_blacklist: bool = False) -> list[PluginInfo]:
-        """从已安装插件中自动收集命令信息"""
-        _debug = getattr(self.config, "debug", False)
-        plugins: dict[str, PluginInfo] = {}
-        blacklist: set[str] = set()
-        if not skip_blacklist:
-            blacklist = set(getattr(self.config, "plugin_blacklist", []) or [])
-        blacklist.add(PLUGIN_NAME)
-        show_builtin = getattr(self.config, "show_builtin_cmds", False)
-
-        if _debug:
-            logger.info(
-                f"[NeoHelp] _collect_plugins: skip_blacklist={skip_blacklist}, "
-                f"blacklist={blacklist}, show_builtin={show_builtin}"
-            )
-
-        try:
-            all_stars = self._ctx.get_all_stars()
-            all_stars = [s for s in all_stars if s.activated]
-        except Exception as e:
-            logger.error(f"获取插件列表失败: {e}")
-            return []
-
-        if _debug:
-            star_names = [f"{getattr(s, 'name', '?')}(reserved={getattr(s, 'reserved', '?')})" for s in all_stars]
-            logger.info(f"[NeoHelp] activated stars: {star_names}")
-
-        # 收集插件基本信息
-        star_modules: dict[str, str] = {}  # module_path -> plugin_name
-        for star in all_stars:
-            name = getattr(star, "name", None)
-            if not name or name in blacklist:
-                continue
-            module_path = getattr(star, "module_path", None)
-            if not module_path:
-                continue
-
-            # 过滤内置 star（reserved=True），除非开启了显示内置命令
-            if getattr(star, "reserved", False) and not show_builtin:
-                continue
-
-            desc = getattr(star, "desc", None) or ""
-            display_name = getattr(star, "display_name", None) or name
-            root_dir_name = getattr(star, "root_dir_name", None)
-
-            plugins[name] = PluginInfo(
-                name=name,
-                display_name=display_name,
-                description=desc,
-                icon_url=self._get_plugin_icon_uri(root_dir_name),
-            )
-            star_modules[module_path] = name
-
-        # 遍历 handler 注册表，收集命令
-        # 第一遍：收集命令组中子 handler 的 id 和每个插件的嵌套子组名
-        grouped_handler_ids: set[int] = set()
-        nested_groups_by_module: dict[str, set[str]] = {}  # module_path -> {子组名}
-        for handler in star_handlers_registry:
-            if not isinstance(handler, StarHandlerMetadata):
-                continue
-            for f in handler.event_filters:
-                if isinstance(f, CommandGroupFilter):
-                    self._collect_group_handler_ids(f, grouped_handler_ids)
-                    names = nested_groups_by_module.setdefault(handler.handler_module_path, set())
-                    self._collect_nested_group_names(f, names)
-
-        # 第二遍：提取命令，跳过已被命令组收录的子 handler 和嵌套子组的独立 handler
-        for handler in star_handlers_registry:
-            if not isinstance(handler, StarHandlerMetadata):
-                continue
-            if id(handler) in grouped_handler_ids:
-                continue
-            # 跳过作为同插件内其他组嵌套子组的独立 handler
-            nested_names = nested_groups_by_module.get(handler.handler_module_path, set())
-            is_nested = False
-            for f in handler.event_filters:
-                if isinstance(f, CommandGroupFilter) and f.group_name in nested_names:
-                    is_nested = True
-                    break
-            if is_nested:
-                continue
-            plugin_name = star_modules.get(handler.handler_module_path)
-            if not plugin_name or plugin_name not in plugins:
-                continue
-
-            self._extract_commands(handler, plugins[plugin_name])
-
-        # 应用配置覆盖
-        self._apply_overrides(plugins)
-
-        # 添加自定义分类
-        self._apply_custom_categories(plugins)
-
-        # 为没有图标的插件分配默认图标
-        default_uri = _get_default_icon_uri()
-        for p in plugins.values():
-            if not p.icon_url:
-                p.icon_url = default_uri
-
-        # 排序
-        return sorted(plugins.values(), key=lambda p: (p.order, p.name))
-
-    def _extract_commands(self, handler: StarHandlerMetadata, plugin: PluginInfo):
-        """从 handler 的 event_filters 中提取命令信息"""
-        cmd_filter: CommandFilter | None = None
-        group_filter: CommandGroupFilter | None = None
-        is_admin = False
-
-        for f in handler.event_filters:
-            if isinstance(f, CommandFilter):
-                cmd_filter = f
-            elif isinstance(f, CommandGroupFilter):
-                group_filter = f
-            elif isinstance(f, PermissionTypeFilter) and f.permission_type == PermissionType.ADMIN:
-                is_admin = True
-
-        if cmd_filter:
-            existing_names = {c.name for c in plugin.commands}
-            if cmd_filter.command_name not in existing_names:
-                plugin.commands.append(
-                    CommandInfo(
-                        name=cmd_filter.command_name,
-                        description=handler.desc or "",
-                        aliases=list(cmd_filter.alias) if cmd_filter.alias else [],
-                        admin_only=is_admin,
-                    )
-                )
-        elif group_filter:
-            self._extract_group_commands(group_filter, plugin, is_admin, prefix="")
-
-    @staticmethod
-    def _collect_group_handler_ids(group: CommandGroupFilter, ids: set[int]):
-        """递归收集命令组中所有子 handler 的 id"""
-        for sub in group.sub_command_filters:
-            if isinstance(sub, CommandFilter) and sub.handler_md:
-                ids.add(id(sub.handler_md))
-            elif isinstance(sub, CommandGroupFilter):
-                CustomHelpPlugin._collect_group_handler_ids(sub, ids)
-
-    @staticmethod
-    def _collect_nested_group_names(group: CommandGroupFilter, names: set[str]):
-        """递归收集作为其他组嵌套子组的组名"""
-        for sub in group.sub_command_filters:
-            if isinstance(sub, CommandGroupFilter):
-                names.add(sub.group_name)
-                CustomHelpPlugin._collect_nested_group_names(sub, names)
-
-    def _extract_group_commands(
-        self,
-        group: CommandGroupFilter,
-        plugin: PluginInfo,
-        parent_admin: bool,
-        prefix: str,
-    ):
-        """递归提取命令组中的子命令"""
-        group_prefix = f"{prefix}{group.group_name} " if prefix else f"{group.group_name} "
-        existing_names = {c.name for c in plugin.commands}
-
-        for sub in group.sub_command_filters:
-            if isinstance(sub, CommandFilter):
-                full_name = f"{group_prefix}{sub.command_name}"
-                if full_name not in existing_names:
-                    sub_desc = ""
-                    sub_admin = parent_admin
-                    if sub.handler_md:
-                        sub_desc = sub.handler_md.desc or ""
-                        for f in sub.handler_md.event_filters:
-                            if isinstance(f, PermissionTypeFilter) and f.permission_type == PermissionType.ADMIN:
-                                sub_admin = True
-                    plugin.commands.append(
-                        CommandInfo(
-                            name=full_name,
-                            description=sub_desc,
-                            aliases=list(sub.alias) if sub.alias else [],
-                            admin_only=sub_admin,
-                        )
-                    )
-                    existing_names.add(full_name)
-            elif isinstance(sub, CommandGroupFilter):
-                self._extract_group_commands(sub, plugin, parent_admin, group_prefix)
-
-    def _apply_overrides(self, plugins: dict[str, PluginInfo]):
-        """应用配置中的插件覆盖"""
-        overrides = getattr(self.config, "plugin_overrides", []) or []
-        if not isinstance(overrides, list):
-            return
-
-        for override in overrides:
-            if not isinstance(override, dict):
-                continue
-            plugin_name = override.get("plugin_name", "")
-            if not plugin_name:
-                continue
-            if plugin_name not in plugins:
-                plugins[plugin_name] = PluginInfo(name=plugin_name)
-
-            p = plugins[plugin_name]
-            if override.get("display_name"):
-                p.display_name = override["display_name"]
-            if override.get("description"):
-                p.description = override["description"]
-            if "order" in override:
-                p.order = override["order"]
-            for raw_cmd in override.get("extra_commands", []):
-                cmd = self._parse_pipe_command(raw_cmd)
-                if cmd:
-                    # 覆盖同名已有命令
-                    p.commands = [c for c in p.commands if c.name != cmd.name]
-                    p.commands.append(cmd)
-
-    def _apply_custom_categories(self, plugins: dict[str, PluginInfo]):
-        """应用自定义分类"""
-        categories = getattr(self.config, "custom_categories", []) or []
-        if not isinstance(categories, list):
-            return
-
-        for cat in categories:
-            if not isinstance(cat, dict) or not cat.get("name"):
-                continue
-            cat_name = f"custom_{cat['name']}"
-            p = PluginInfo(
-                name=cat_name,
-                display_name=cat["name"],
-                description=cat.get("description", ""),
-                order=cat.get("order", 99),
-            )
-            for raw_cmd in cat.get("commands", []):
-                cmd = self._parse_pipe_command(raw_cmd)
-                if cmd:
-                    p.commands.append(cmd)
-            if p.commands:
-                plugins[cat_name] = p
-
-    @staticmethod
-    def _parse_pipe_command(raw: str) -> CommandInfo | None:
-        """解析 '命令名|描述|前缀' 格式的字符串为 CommandInfo
-
-        前缀为可选第三段：省略则默认无前缀，填写则使用自定义前缀。
-        """
-        if not isinstance(raw, str) or not raw.strip():
-            return None
-        parts = raw.split("|")
-        name = parts[0].strip()
-        desc = parts[1].strip() if len(parts) > 1 else ""
-        custom_prefix = parts[2].strip() if len(parts) > 2 else ""
-        if not name:
-            return None
-        return CommandInfo(name=name, description=desc, custom_prefix=custom_prefix)
+        """委托给 PluginCollector 收集插件信息"""
+        return self._collector.collect(skip_blacklist=skip_blacklist)
 
     # ==================== 渲染配置 ====================
 
@@ -631,7 +302,7 @@ class CustomHelpPlugin(Star):
         banner_path = self._resolve_data_path(banner_path_str)
         if not banner_path:
             return ""
-        return _read_image_as_data_uri(banner_path)
+        return read_image_as_data_uri(banner_path)
 
     def _get_header_logo_uri(self) -> str:
         """获取顶部 Logo 的 data URI，优先使用配置，否则使用插件自带 logo.svg"""
@@ -639,10 +310,10 @@ class CustomHelpPlugin(Star):
         if logo_path_str:
             logo_path = self._resolve_data_path(logo_path_str)
             if logo_path:
-                uri = _read_image_as_data_uri(logo_path)
+                uri = read_image_as_data_uri(logo_path)
                 if uri:
                     return uri
-        return _read_image_as_data_uri(DEFAULT_LOGO_PATH)
+        return read_image_as_data_uri(DEFAULT_LOGO_PATH)
 
     def _get_font_config(self) -> dict:
         """获取自定义字体配置"""
@@ -744,7 +415,7 @@ class CustomHelpPlugin(Star):
         expand = getattr(self.config, "expand_commands", False)
         template_name = "expanded_menu.html" if expand else "main_menu.html"
         custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
-        template = _read_template(template_name, custom_dir)
+        template = read_template(template_name, custom_dir)
         prefix = self._get_wake_prefix()
         data = self._build_main_menu_data(plugins, prefix, expand)
 
@@ -778,7 +449,7 @@ class CustomHelpPlugin(Star):
             return event.plain_result(f"未找到插件「{query}」，请发送 {prefix}help 查看所有可用插件。")
 
         custom_dir = self._data_dir / "custom_templates" if getattr(self.config, "custom_templates", False) else None
-        template = _read_template("sub_menu.html", custom_dir)
+        template = read_template("sub_menu.html", custom_dir)
         prefix = self._get_wake_prefix()
         data = self._build_sub_menu_data(target, prefix)
 
