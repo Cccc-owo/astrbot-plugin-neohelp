@@ -4,8 +4,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from jinja2 import Template
+from jinja2 import Environment, select_autoescape
 from playwright.async_api import async_playwright
+
+_env = Environment(autoescape=select_autoescape(default_for_string=True, default=True))
 
 _browser = None
 _playwright_instance = None
@@ -25,9 +27,12 @@ async def _get_browser():
         return _browser
 
 
+_TIMEOUT = 30_000  # 30 秒超时
+
+
 async def render_template(tmpl_str: str, data: dict) -> bytes:
     """用 Jinja2 渲染模板，然后用 Playwright 截图，返回 PNG bytes"""
-    html = Template(tmpl_str).render(**data)
+    html = _env.from_string(tmpl_str).render(**data)
 
     # 写入临时文件（Playwright 需要 file:// URL 来正确加载）
     fd, tmp_path = tempfile.mkstemp(suffix=".html")
@@ -38,9 +43,9 @@ async def render_template(tmpl_str: str, data: dict) -> bytes:
         browser = await _get_browser()
         page = await browser.new_page(device_scale_factor=2)
         try:
-            await page.goto(Path(tmp_path).as_uri(), wait_until="networkidle")
+            await page.goto(Path(tmp_path).as_uri(), wait_until="networkidle", timeout=_TIMEOUT)
             # 等待网络字体加载完成
-            await page.evaluate("() => document.fonts.ready")
+            await page.evaluate("() => document.fonts.ready", timeout=_TIMEOUT)
             # 从 body 获取实际渲染尺寸（body 宽度由 CSS 变量精确计算）
             dimensions = await page.evaluate(
                 """() => {
@@ -50,10 +55,11 @@ async def render_template(tmpl_str: str, data: dict) -> bytes:
                         width: parseInt(style.width) || body.scrollWidth,
                         height: body.scrollHeight
                     };
-                }"""
+                }""",
+                timeout=_TIMEOUT,
             )
             await page.set_viewport_size({"width": dimensions["width"], "height": dimensions["height"]})
-            screenshot = await page.screenshot(full_page=True, type="png")
+            screenshot = await page.screenshot(full_page=True, type="png", timeout=_TIMEOUT)
             return screenshot
         finally:
             await page.close()

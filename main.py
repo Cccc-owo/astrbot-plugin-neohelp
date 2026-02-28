@@ -516,6 +516,7 @@ class CustomHelpPlugin(Star):
                             admin_only=sub_admin,
                         )
                     )
+                    existing_names.add(full_name)
             elif isinstance(sub, CommandGroupFilter):
                 self._extract_group_commands(sub, handler, plugin, parent_admin, group_prefix)
 
