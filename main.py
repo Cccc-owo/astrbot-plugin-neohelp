@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import hashlib
 import json
 import mimetypes
@@ -111,6 +112,8 @@ class CustomHelpPlugin(Star):
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._image_cache: dict[str, bytes] = {}
         self._terminated = False
+        self._preheat_task: asyncio.Task | None = None
+        self._render_locks: dict[str, asyncio.Lock] = {}
         self._disk_cache = bool(getattr(self.config, "disk_cache", False))
         self._cache_dir = self._data_dir / "cache"
         if self._disk_cache:
@@ -118,11 +121,15 @@ class CustomHelpPlugin(Star):
 
     async def initialize(self):
         """插件完全加载后启动缓存预热"""
-        asyncio.create_task(self._preheat_cache())
+        self._preheat_task = asyncio.create_task(self._preheat_cache())
 
     async def terminate(self):
         """插件卸载时关闭浏览器并清理缓存"""
         self._terminated = True
+        if self._preheat_task and not self._preheat_task.done():
+            self._preheat_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._preheat_task
         if not self._disk_cache:
             self._image_cache.clear()
         await renderer.cleanup()
@@ -141,17 +148,23 @@ class CustomHelpPlugin(Star):
         return self._cache_dir / f"{key}.png"
 
     async def _get_cached_or_render(self, template_name: str, template: str, data: dict) -> bytes:
-        """查缓存，命中直接返回；未命中则渲染并存入缓存"""
+        """查缓存，命中直接返回；未命中则加锁渲染并存入缓存"""
         key = self._cache_key(template_name, data)
         _debug = getattr(self.config, "debug", False)
 
-        # 读缓存
+        # 读缓存（无锁快路径）
         if self._disk_cache:
             cache_file = self._disk_cache_path(key)
-            if cache_file.is_file():
-                if _debug:
-                    logger.info(f"[NeoHelp] disk cache hit: {template_name}")
-                return cache_file.read_bytes()
+            try:
+                if cache_file.is_file():
+                    content = cache_file.read_bytes()
+                    if content:
+                        if _debug:
+                            logger.info(f"[NeoHelp] disk cache hit: {template_name}")
+                        return content
+                    cache_file.unlink(missing_ok=True)
+            except OSError:
+                cache_file.unlink(missing_ok=True)
         else:
             cached = self._image_cache.get(key)
             if cached is not None:
@@ -159,16 +172,37 @@ class CustomHelpPlugin(Star):
                     logger.info(f"[NeoHelp] memory cache hit: {template_name}")
                 return cached
 
-        if _debug:
-            logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
-        img_bytes = await renderer.render_template(template, data)
+        # 加 key 级别锁，防止并发重复渲染
+        lock = self._render_locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            # double-check：拿到锁后再查一次缓存
+            if self._disk_cache:
+                cache_file = self._disk_cache_path(key)
+                try:
+                    if cache_file.is_file():
+                        content = cache_file.read_bytes()
+                        if content:
+                            return content
+                except OSError:
+                    pass
+            else:
+                cached = self._image_cache.get(key)
+                if cached is not None:
+                    return cached
 
-        # 写缓存
-        if self._disk_cache:
-            self._disk_cache_path(key).write_bytes(img_bytes)
-        else:
-            self._image_cache[key] = img_bytes
-        return img_bytes
+            if _debug:
+                logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
+            img_bytes = await renderer.render_template(template, data)
+
+            # 写缓存
+            if self._disk_cache:
+                try:
+                    self._disk_cache_path(key).write_bytes(img_bytes)
+                except OSError as e:
+                    logger.warning(f"[NeoHelp] 磁盘缓存写入失败: {e}")
+            else:
+                self._image_cache[key] = img_bytes
+            return img_bytes
 
     async def _preheat_cache(self):
         """预热缓存（主菜单 + 所有子菜单，普通版 + 管理员版）"""
@@ -341,10 +375,6 @@ class CustomHelpPlugin(Star):
             if not module_path:
                 continue
 
-            star_cls = getattr(star, "star_cls", None)
-            if star_cls is self:
-                continue
-
             # 过滤内置 star（reserved=True），除非开启了显示内置命令
             if getattr(star, "reserved", False) and not show_builtin:
                 continue
@@ -362,31 +392,38 @@ class CustomHelpPlugin(Star):
             star_modules[module_path] = name
 
         # 遍历 handler 注册表，收集命令
-        # 第一遍：收集命令组中子 handler 的 id，防止后续作为独立命令重复添加
+        # 第一遍：收集命令组中子 handler 的 id 和每个插件的嵌套子组名
         grouped_handler_ids: set[int] = set()
+        nested_groups_by_module: dict[str, set[str]] = {}  # module_path -> {子组名}
         for handler in star_handlers_registry:
             if not isinstance(handler, StarHandlerMetadata):
                 continue
             for f in handler.event_filters:
                 if isinstance(f, CommandGroupFilter):
                     self._collect_group_handler_ids(f, grouped_handler_ids)
+                    names = nested_groups_by_module.setdefault(handler.handler_module_path, set())
+                    self._collect_nested_group_names(f, names)
 
-        # 第二遍：提取命令，跳过已被命令组收录的子 handler
+        # 第二遍：提取命令，跳过已被命令组收录的子 handler 和嵌套子组的独立 handler
         for handler in star_handlers_registry:
             if not isinstance(handler, StarHandlerMetadata):
                 continue
             if id(handler) in grouped_handler_ids:
+                continue
+            # 跳过作为同插件内其他组嵌套子组的独立 handler
+            nested_names = nested_groups_by_module.get(handler.handler_module_path, set())
+            is_nested = False
+            for f in handler.event_filters:
+                if isinstance(f, CommandGroupFilter) and f.group_name in nested_names:
+                    is_nested = True
+                    break
+            if is_nested:
                 continue
             plugin_name = star_modules.get(handler.handler_module_path)
             if not plugin_name or plugin_name not in plugins:
                 continue
 
             self._extract_commands(handler, plugins[plugin_name])
-
-        # 去重：移除被命令组包含的独立命令
-        for p in plugins.values():
-            names = {c.name for c in p.commands}
-            p.commands = [c for c in p.commands if not any(n.endswith(f" {c.name}") for n in names)]
 
         # 应用配置覆盖
         self._apply_overrides(plugins)
@@ -439,6 +476,14 @@ class CustomHelpPlugin(Star):
                 ids.add(id(sub.handler_md))
             elif isinstance(sub, CommandGroupFilter):
                 CustomHelpPlugin._collect_group_handler_ids(sub, ids)
+
+    @staticmethod
+    def _collect_nested_group_names(group: CommandGroupFilter, names: set[str]):
+        """递归收集作为其他组嵌套子组的组名"""
+        for sub in group.sub_command_filters:
+            if isinstance(sub, CommandGroupFilter):
+                names.add(sub.group_name)
+                CustomHelpPlugin._collect_nested_group_names(sub, names)
 
     def _extract_group_commands(
         self,

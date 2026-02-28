@@ -65,11 +65,12 @@ async def render_template(tmpl_str: str, data: dict) -> bytes:
 async def cleanup():
     """关闭浏览器实例（插件卸载时调用）"""
     global _browser, _playwright_instance
-    if _browser:
-        with contextlib.suppress(Exception):
-            await _browser.close()
-        _browser = None
-    if _playwright_instance:
-        with contextlib.suppress(Exception):
-            await _playwright_instance.stop()
-        _playwright_instance = None
+    async with _lock:
+        if _browser:
+            with contextlib.suppress(Exception):
+                await _browser.close()
+            _browser = None
+        if _playwright_instance:
+            with contextlib.suppress(Exception):
+                await _playwright_instance.stop()
+            _playwright_instance = None
