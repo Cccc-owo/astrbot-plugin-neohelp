@@ -94,37 +94,34 @@ class CustomHelpPlugin(Star):
         # 加 key 级别锁，防止并发重复渲染
         lock = self._render_locks.setdefault(key, asyncio.Lock())
         async with lock:
-            try:
-                # double-check：拿到锁后再查一次缓存
-                if self._disk_cache:
-                    cache_file = self._disk_cache_path(key)
-                    try:
-                        if cache_file.is_file():
-                            content = cache_file.read_bytes()
-                            if content:
-                                return content
-                    except OSError:
-                        pass
-                else:
-                    cached = self._image_cache.get(key)
-                    if cached is not None:
-                        return cached
+            # double-check：拿到锁后再查一次缓存
+            if self._disk_cache:
+                cache_file = self._disk_cache_path(key)
+                try:
+                    if cache_file.is_file():
+                        content = cache_file.read_bytes()
+                        if content:
+                            return content
+                except OSError:
+                    pass
+            else:
+                cached = self._image_cache.get(key)
+                if cached is not None:
+                    return cached
 
-                if _debug:
-                    logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
-                img_bytes = await renderer.render_template(template, data)
+            if _debug:
+                logger.info(f"[NeoHelp] cache miss: {template_name}, rendering...")
+            img_bytes = await renderer.render_template(template, data)
 
-                # 写缓存
-                if self._disk_cache:
-                    try:
-                        self._disk_cache_path(key).write_bytes(img_bytes)
-                    except OSError as e:
-                        logger.warning(f"[NeoHelp] 磁盘缓存写入失败: {e}")
-                else:
-                    self._image_cache[key] = img_bytes
-                return img_bytes
-            finally:
-                self._render_locks.pop(key, None)
+            # 写缓存
+            if self._disk_cache:
+                try:
+                    self._disk_cache_path(key).write_bytes(img_bytes)
+                except OSError as e:
+                    logger.warning(f"[NeoHelp] 磁盘缓存写入失败: {e}")
+            else:
+                self._image_cache[key] = img_bytes
+            return img_bytes
 
     async def _preheat_cache(self):
         """预热缓存（主菜单 + 所有子菜单，普通版 + 管理员版）"""
@@ -217,7 +214,7 @@ class CustomHelpPlugin(Star):
     def _is_admin(self, event: AstrMessageEvent) -> bool:
         """判断消息发送者是否为 AstrBot 管理员"""
         sender_id = str(event.get_sender_id())
-        admins = [str(a) for a in self._ctx.get_config().get("admins_id", [])]
+        admins = [str(a) for a in self._ctx.get_config().get("admins_id", []) or []]
         return sender_id in admins
 
     def _get_wake_prefix(self) -> str:
